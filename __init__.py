@@ -18,6 +18,8 @@ bl_info = {
 def register():
     bpy.utils.register_class(SourceCats.OP_MergeBones_GetThreshold)
     bpy.utils.register_class(SourceCats.OP_MergeBones)
+    bpy.utils.register_class(SourceCats.OP_ClearLRFlexs)
+    bpy.utils.register_class(SourceCats.OP_GenLRFlexs)
     bpy.utils.register_class(SourceCats.SourceCats_PT_MainPanel)
 
     scene = bpy.types.Scene
@@ -40,6 +42,8 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(SourceCats.SourceCats_PT_MainPanel)
+    bpy.utils.unregister_class(SourceCats.OP_GenLRFlexs)
+    bpy.utils.unregister_class(SourceCats.OP_ClearLRFlexs)
     bpy.utils.unregister_class(SourceCats.OP_MergeBones)
     bpy.utils.unregister_class(SourceCats.OP_MergeBones_GetThreshold)
 
