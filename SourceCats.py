@@ -52,22 +52,28 @@ class OP_MergeBones(bpy.types.Operator):
             boneA = selected_bones[i]
             for i2 in range(i+1, len(selected_bones)):
                 boneB = selected_bones[i2]
-                d = boneA.head \
-                    - boneB.head
+                d = boneA.head - boneB.head
 
                 if Decimal(d.length) <= Decimal(scene.merge_bones_threshold):
-                    aIsValveBone = boneA.name.startswith("ValveBiped.Bip")
-                    bIsValveBone = boneB.name.startswith("ValveBiped.Bip")
-                    if aIsValveBone and bIsValveBone:
+                    aInGroup = False
+                    bInGroup = False
+                    if boneA.bone_group:
+                        aInGroup = True
+                    
+                    if boneB.bone_group:
+                        bInGroup = True
+                    
+                    if aInGroup and bInGroup:
+                        print(boneA.bone_group, boneB.bone_group)
                         continue
-                    elif aIsValveBone:
+                    elif aInGroup:
                         merging_list.append([boneB.name, boneA.name])
-                    elif bIsValveBone:
+                    elif bInGroup:
                         merging_list.append([boneA.name, boneB.name])
-                        switch_mode('EDIT')
-                        merge_bone(armature,
-                                   merging_list[-1][0], merging_list[-1][1], scene.keep_merged_bones)
-                        switch_mode("OBJECT")
+                    switch_mode('EDIT')
+                    merge_bone(armature,
+                                merging_list[-1][0], merging_list[-1][1], scene.keep_merged_bones)
+                    switch_mode("OBJECT")
 
         if not scene.keep_merged_bones:
             for obj in bpy.context.scene.objects.get(armature.name).children:
@@ -110,7 +116,7 @@ class OP_GenLRFlexs(bpy.types.Operator):
         for shape_key in shape_keys:
             name:str = shape_key.name
             if name[-1] != "R" and name[-1] != "L" and shape_key.vertex_group == "":
-                
+
                 flexL:bpy.types.ShapeKey = shape_key
 
                 if flexL.relative_key == flexL:
@@ -123,6 +129,7 @@ class OP_GenLRFlexs(bpy.types.Operator):
                 # func from shape keys+ addon
                 flexR = selected_object.shape_key_add(name=f'{name}R', from_mix=True)
                 flexR.vertex_group = "R"
+        bpy.ops.object.shape_key_clear()
         return {'FINISHED'}
 
 class OP_ClearLRFlexs(bpy.types.Operator):
@@ -156,7 +163,7 @@ class OP_ClearLRFlexs(bpy.types.Operator):
                         flexL = flex
                     elif vertex_group == "R":
                         flexR = flex
-                
+
                 if flexL and flexR:
                     flexL.vertex_group = ""
                     flexL.name = flexL.name.removesuffix("L")
@@ -164,6 +171,22 @@ class OP_ClearLRFlexs(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class OP_CollapseMaterialName(bpy.types.Operator):
+    bl_idname = "sourcecat.collapse_material_name"
+    bl_label = "Collapse material"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context: bpy.types.Context):
+        for mat in bpy.data.materials:
+            node_tree = mat.node_tree
+            if not node_tree:
+                continue
+            for node in node_tree.nodes:
+                if node.type == "TEX_IMAGE" and node.image:
+                    suff = node.image.name.split(".")[0]
+                    if mat.name.split(".")[0] != suff:
+                        mat.name = f'{suff}.{mat.name}'
+        return {'FINISHED'}
 
 class SourceCats_PT_MainPanel(bpy.types.Panel):
     bl_idname = "SourceCats_PT_MainPanel"
@@ -195,5 +218,8 @@ class SourceCats_PT_MainPanel(bpy.types.Panel):
         row = box.row()
         row.operator(OP_GenLRFlexs.bl_idname)
         row.operator(OP_ClearLRFlexs.bl_idname)
+
+        col = box.column()
+        col.operator(OP_CollapseMaterialName.bl_idname)
 
 

@@ -7,7 +7,7 @@ from . import SourceCats
 bl_info = {
     "name": "Source Cats",
     "blender": (3, 0, 0),
-    "version": (1, 0),
+    "version": (1, 1),
     'location': 'View 3D > Tool Shelf > SourceCats',
     'category': '3D View',
     "author": "Starfelll",
@@ -17,6 +17,7 @@ bl_info = {
 
 def register():
     bpy.utils.register_class(SourceCats.OP_MergeBones_GetThreshold)
+    bpy.utils.register_class(SourceCats.OP_CollapseMaterialName)
     bpy.utils.register_class(SourceCats.OP_MergeBones)
     bpy.utils.register_class(SourceCats.OP_ClearLRFlexs)
     bpy.utils.register_class(SourceCats.OP_GenLRFlexs)
@@ -45,6 +46,7 @@ def unregister():
     bpy.utils.unregister_class(SourceCats.OP_GenLRFlexs)
     bpy.utils.unregister_class(SourceCats.OP_ClearLRFlexs)
     bpy.utils.unregister_class(SourceCats.OP_MergeBones)
+    bpy.utils.unregister_class(SourceCats.OP_CollapseMaterialName)
     bpy.utils.unregister_class(SourceCats.OP_MergeBones_GetThreshold)
 
 
