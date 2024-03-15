@@ -1,14 +1,14 @@
 import bpy
 from bpy.props import BoolProperty, FloatProperty
 
-from . import SourceCats
+from . import NekoTools
 
 
 bl_info = {
-    "name": "Source Cats",
-    "blender": (3, 0, 0),
-    "version": (1, 1),
-    'location': 'View 3D > Tool Shelf > SourceCats',
+    "name": "NekoTools",
+    "blender": (4, 0, 0),
+    "version": (2, 0),
+    'location': 'View 3D > Tool Shelf',
     'category': '3D View',
     "author": "Starfelll",
     "url": "https://steamcommunity.com/profiles/76561198859761739"
@@ -16,12 +16,11 @@ bl_info = {
 
 
 def register():
-    bpy.utils.register_class(SourceCats.OP_MergeBones_GetThreshold)
-    bpy.utils.register_class(SourceCats.OP_CollapseMaterialName)
-    bpy.utils.register_class(SourceCats.OP_MergeBones)
-    bpy.utils.register_class(SourceCats.OP_ClearLRFlexs)
-    bpy.utils.register_class(SourceCats.OP_GenLRFlexs)
-    bpy.utils.register_class(SourceCats.SourceCats_PT_MainPanel)
+    bpy.utils.register_class(NekoTools.OP_MergeBones_GetThreshold)
+    bpy.utils.register_class(NekoTools.OP_CollapseMaterialName)
+    bpy.utils.register_class(NekoTools.OP_MergeBones)
+    bpy.utils.register_class(NekoTools.OP_MergeToActive)
+    bpy.utils.register_class(NekoTools.PT_MainPanel)
 
     scene = bpy.types.Scene
     scene.keep_merged_bones = BoolProperty(
@@ -42,12 +41,11 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_class(SourceCats.SourceCats_PT_MainPanel)
-    bpy.utils.unregister_class(SourceCats.OP_GenLRFlexs)
-    bpy.utils.unregister_class(SourceCats.OP_ClearLRFlexs)
-    bpy.utils.unregister_class(SourceCats.OP_MergeBones)
-    bpy.utils.unregister_class(SourceCats.OP_CollapseMaterialName)
-    bpy.utils.unregister_class(SourceCats.OP_MergeBones_GetThreshold)
+    bpy.utils.unregister_class(NekoTools.PT_MainPanel)
+    bpy.utils.unregister_class(NekoTools.OP_MergeBones)
+    bpy.utils.unregister_class(NekoTools.OP_MergeToActive)
+    bpy.utils.unregister_class(NekoTools.OP_CollapseMaterialName)
+    bpy.utils.unregister_class(NekoTools.OP_MergeBones_GetThreshold)
 
 
 if __name__ == "__main__":
