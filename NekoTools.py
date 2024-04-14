@@ -47,6 +47,7 @@ class OP_MergeBones(bpy.types.Operator):
         armature = context.object
         scene = context.scene
         merging_list = []
+        print(len(selected_bones))
         for i in range(len(selected_bones)):
             boneA = selected_bones[i]
             for i2 in range(i+1, len(selected_bones)):
@@ -72,7 +73,7 @@ class OP_MergeBones(bpy.types.Operator):
                         merging_list.append([boneA.name, boneB.name])
                     switch_mode('EDIT')
                     merge_bone(armature, merging_list[-1][0], merging_list[-1][1], scene.keep_merged_bones)
-                    switch_mode("OBJECT")
+                    #switch_mode("OBJECT")
         for obj in bpy.context.scene.objects.get(armature.name).children:
             if obj.type != 'MESH':
                 continue
