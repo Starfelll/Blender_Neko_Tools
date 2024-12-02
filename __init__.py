@@ -7,7 +7,7 @@ from . import NekoTools
 bl_info = {
     "name": "NekoTools",
     "blender": (4, 0, 0),
-    "version": (2, 0),
+    "version": (2, 1),
     'location': 'View 3D > Tool Shelf',
     'category': '3D View',
     "author": "Starfelll",
@@ -16,11 +16,8 @@ bl_info = {
 
 
 def register():
-    bpy.utils.register_class(NekoTools.OP_MergeBones_GetThreshold)
-    bpy.utils.register_class(NekoTools.OP_CollapseMaterialName)
-    bpy.utils.register_class(NekoTools.OP_MergeBones)
-    bpy.utils.register_class(NekoTools.OP_MergeToActive)
-    bpy.utils.register_class(NekoTools.PT_MainPanel)
+    for c in NekoTools.class_list:
+        bpy.utils.register_class(c)
 
     scene = bpy.types.Scene
     scene.keep_merged_bones = BoolProperty(
@@ -41,12 +38,8 @@ def register():
 
 
 def unregister():
-    bpy.utils.unregister_class(NekoTools.PT_MainPanel)
-    bpy.utils.unregister_class(NekoTools.OP_MergeBones)
-    bpy.utils.unregister_class(NekoTools.OP_MergeToActive)
-    bpy.utils.unregister_class(NekoTools.OP_CollapseMaterialName)
-    bpy.utils.unregister_class(NekoTools.OP_MergeBones_GetThreshold)
-
+    for c in reversed(NekoTools.class_list):
+        bpy.utils.unregister_class(c)
 
 if __name__ == "__main__":
     register()

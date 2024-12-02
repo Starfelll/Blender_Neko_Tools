@@ -197,3 +197,65 @@ class PT_MainPanel(bpy.types.Panel):
         # col.operator(OP_CollapseMaterialName.bl_idname, text="塌陷所有材质")
 
 
+class OP_SelectBones1(bpy.types.Operator):
+    bl_idname = "nekotools.select_bones1"
+    bl_label = "选择平级链平级骨"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context: bpy.types.Context):
+        chain_parent = context.active_bone
+        if chain_parent.parent is None:
+            return {'FINISHED'}
+        
+        in_chain_depth = 0
+        while True:
+            chain_parent = chain_parent.parent
+            if len(chain_parent.children) > 2 or chain_parent.parent is None:
+                break
+            in_chain_depth += 1
+
+        def select_bone_in_detph(bone, depth):
+            if depth <= 0:
+                bone.select = True
+                return
+            for bone_child in bone.children:
+                select_bone_in_detph(bone_child, depth-1)
+                break
+        
+        print(in_chain_depth)
+        for bone in chain_parent.children:
+            select_bone_in_detph(bone, in_chain_depth)
+        return {'FINISHED'}
+
+
+class SelectBones1Menu(bpy.types.Menu):
+    bl_idname = "nekotools.select_bones1_menu"
+    bl_label = "选择平级链平级骨"
+
+    def draw(self, _):
+        pass
+
+    @staticmethod
+    def draw_menu(this: bpy.types.Menu, _):
+        this.layout.operator(OP_SelectBones1.bl_idname)
+
+    @staticmethod
+    def register():
+        bpy.types.VIEW3D_MT_select_pose.append(SelectBones1Menu.draw_menu)
+        bpy.types.VIEW3D_MT_select_edit_armature.append(SelectBones1Menu.draw_menu)
+
+    @staticmethod
+    def unregister():
+        bpy.types.VIEW3D_MT_select_pose.remove(SelectBones1Menu.draw_menu)
+        bpy.types.VIEW3D_MT_select_edit_armature.remove(SelectBones1Menu.draw_menu)
+
+
+class_list = [
+    OP_MergeBones_GetThreshold,
+    OP_CollapseMaterialName,
+    OP_MergeBones,
+    OP_MergeToActive,
+    PT_MainPanel,
+    OP_SelectBones1,
+    SelectBones1Menu,
+]
