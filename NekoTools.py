@@ -32,13 +32,16 @@ def set_active_obj(obj):
     bpy.context.view_layer.objects.active = obj
 
 
-class OP_MergeBones(bpy.types.Operator):
+class OP_MergeBonesByDistance(bpy.types.Operator):
     bl_idname = "sourcecat.merge_bones"
     bl_label = "Merge Bones"
     bl_description = "在选中的骨骼里，将不属于任何骨骼集合的骨骼，按照距离合并权重到存在于骨骼集合中的骨骼"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        init_mode = context.object.mode
+        switch_mode('EDIT')
+
         selected_bones = context.selected_bones
         if selected_bones is None:
             self.report({'INFO'}, 'No selected bone')
@@ -71,9 +74,7 @@ class OP_MergeBones(bpy.types.Operator):
                         merging_list.append([boneB.name, boneA.name])
                     elif bInGroup:
                         merging_list.append([boneA.name, boneB.name])
-                    switch_mode('EDIT')
                     merge_bone(armature, merging_list[-1][0], merging_list[-1][1], scene.keep_merged_bones)
-                    #switch_mode("OBJECT")
         for obj in bpy.context.scene.objects.get(armature.name).children:
             if obj.type != 'MESH':
                 continue
@@ -86,8 +87,9 @@ class OP_MergeBones(bpy.types.Operator):
                     set_active_obj(obj)
                     merge_weights(mesh=obj, vg_from=tomerge, vg_to=bone)
         set_active_obj(armature)
-        switch_mode('EDIT')
+        switch_mode(init_mode)
         return {'FINISHED'}
+
 
 class OP_MergeToActive(bpy.types.Operator):
     bl_idname = "sourcecat.merge_bones_to_active"
@@ -145,6 +147,7 @@ class OP_MergeBones_GetThreshold(bpy.types.Operator):
         context.scene.merge_bones_threshold = result
         return {'FINISHED'}
 
+
 class OP_CollapseMaterialName(bpy.types.Operator):
     bl_idname = "sourcecat.collapse_material_name"
     bl_label = "Collapse material"
@@ -162,12 +165,13 @@ class OP_CollapseMaterialName(bpy.types.Operator):
                         mat.name = f'{suff}.{mat.name}'
         return {'FINISHED'}
 
-class PT_MainPanel(bpy.types.Panel):
-    bl_idname = "PT_MainPanel"
+
+class VIEW_3D_PT_nekotools(bpy.types.Panel):
+    bl_idname = "VIEW_3D_PT_nekotools"
     bl_label = "Neko Tools 🐾"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
-    bl_category = "Neko"
+    bl_category = "⭐"
 
     def draw(self, context):
         layout = self.layout
@@ -190,17 +194,47 @@ class PT_MainPanel(bpy.types.Panel):
 
         row = col.row()
         row.scale_y = 1.6
-        row.operator(OP_MergeBones.bl_idname, text="合并🐾")
+        row.operator(OP_MergeBonesByDistance.bl_idname, text="合并🐾")
 
 
         # col = box.column()
         # col.operator(OP_CollapseMaterialName.bl_idname, text="塌陷所有材质")
 
 
+# resutn posebone or editbone
+def get_selected_bones(context: bpy.types.Context):
+    if context.mode == "EDIT_ARMATURE":
+        return context.selected_bones
+    else:
+        return context.selected_pose_bones
+
+
+class OP_SelectedBonesToClipboard(bpy.types.Operator):
+    bl_idname = "nekotools.selected_bones_to_clipboard"
+    bl_label = "复制选中骨骼名字"
+    bl_options = {'REGISTER', 'UNDO'}
+    prefix: bpy.props.StringProperty(name="前缀", default="$BoneMerge ") # type: ignore
+    
+    def execute(self, context: bpy.types.Context):
+        is_first = True
+        result = ''
+        selected_bones = get_selected_bones(context)
+        for bone in selected_bones:
+            if is_first:
+                is_first = False
+            else:
+                result += "\n"
+            result += f'{self.prefix}"{bone.name}"'
+        if len(result) > 0:
+            context.window_manager.clipboard = result
+        return {"FINISHED"}
+
+
 class OP_SelectBones1(bpy.types.Operator):
     bl_idname = "nekotools.select_bones1"
     bl_label = "选择平级链平级骨"
     bl_options = {'REGISTER', 'UNDO'}
+    same_prefix: bpy.props.BoolProperty(name="相同前缀", default=True)
 
     def execute(self, context: bpy.types.Context):
         chain_parent = context.active_bone
@@ -208,29 +242,65 @@ class OP_SelectBones1(bpy.types.Operator):
             return {'FINISHED'}
         
         in_chain_depth = 0
+        init_mode = context.object.mode
+        switch_mode("EDIT")
+
+        selected_bones = {}
+        for bone in get_selected_bones(context):
+            selected_bones[bone.name] = True
+
+        def set_edit_bone_select(bone: bpy.types.EditBone, state: bool):
+            bone.select = state
+            bone.select_head = state
+            bone.select_tail = state
+
         while True:
+            ref_chain_root = chain_parent.name
             chain_parent = chain_parent.parent
             if len(chain_parent.children) > 2 or chain_parent.parent is None:
                 break
             in_chain_depth += 1
+        
+        if self.same_prefix:
+            context_override = {}
+            if (context.object.type != "ARMATURE"):
+                return {"nonono"}
+            context_override["active_bone"] = context.object.data.edit_bones[ref_chain_root]
+            with context.temp_override(**context_override):
+                bpy.ops.armature.select_similar(type="PREFIX")
+                selected_prefix_bones = {}
+                for bone in get_selected_bones(context):
+                    selected_prefix_bones[bone.name] = True
 
         def select_bone_in_detph(bone, depth):
-            if depth <= 0:
-                bone.select = True
+            if depth <= 0 and not (bone.hide_select or bone.hide):
+                if self.same_prefix:
+                    # if bone.name not in selected_prefix_bones:
+                    #     return
+                    selected_bones[bone.name] = True
+                set_edit_bone_select(bone, True)
                 return
             for bone_child in bone.children:
                 select_bone_in_detph(bone_child, depth-1)
                 break
         
-        print(in_chain_depth)
         for bone in chain_parent.children:
+            if self.same_prefix and bone.name not in selected_prefix_bones:
+                continue
             select_bone_in_detph(bone, in_chain_depth)
+
+        if self.same_prefix:
+            for bone in get_selected_bones(context):
+                if bone.name not in selected_bones:
+                    set_edit_bone_select(bone, False)
+        
+        switch_mode(init_mode)
         return {'FINISHED'}
 
 
-class SelectBones1Menu(bpy.types.Menu):
-    bl_idname = "nekotools.select_bones1_menu"
-    bl_label = "选择平级链平级骨"
+class VIEW3D_MT_select_pose_nekotools(bpy.types.Menu):
+    bl_idname = "VIEW3D_MT_select_pose_nekotools"
+    bl_label = bl_idname
 
     def draw(self, _):
         pass
@@ -241,21 +311,68 @@ class SelectBones1Menu(bpy.types.Menu):
 
     @staticmethod
     def register():
-        bpy.types.VIEW3D_MT_select_pose.append(SelectBones1Menu.draw_menu)
-        bpy.types.VIEW3D_MT_select_edit_armature.append(SelectBones1Menu.draw_menu)
+        bpy.types.VIEW3D_MT_select_pose.append(VIEW3D_MT_select_pose_nekotools.draw_menu)
+        bpy.types.VIEW3D_MT_select_edit_armature.append(VIEW3D_MT_select_pose_nekotools.draw_menu)
 
     @staticmethod
     def unregister():
-        bpy.types.VIEW3D_MT_select_pose.remove(SelectBones1Menu.draw_menu)
-        bpy.types.VIEW3D_MT_select_edit_armature.remove(SelectBones1Menu.draw_menu)
+        bpy.types.VIEW3D_MT_select_pose.remove(VIEW3D_MT_select_pose_nekotools.draw_menu)
+        bpy.types.VIEW3D_MT_select_edit_armature.remove(VIEW3D_MT_select_pose_nekotools.draw_menu)
+
+
+class VIEW3D_MT_pose_nekotools(bpy.types.Menu):
+    bl_idname = "VIEW3D_MT_pose_nekotools"
+    bl_label = bl_idname
+
+    def draw(self, _):
+        pass
+
+    @staticmethod
+    def draw_menu(this: bpy.types.Menu, _):
+        this.layout.operator(OP_SelectedBonesToClipboard.bl_idname)
+    
+    @staticmethod
+    def register():
+        bpy.types.VIEW3D_MT_pose.append(VIEW3D_MT_pose_nekotools.draw_menu)
+        bpy.types.VIEW3D_MT_pose_context_menu.append(VIEW3D_MT_pose_nekotools.draw_menu)
+
+    @staticmethod
+    def unregister():
+        bpy.types.VIEW3D_MT_pose.remove(VIEW3D_MT_pose_nekotools.draw_menu)
+        bpy.types.VIEW3D_MT_pose_context_menu.remove(VIEW3D_MT_pose_nekotools.draw_menu)
+
+
+class VIEW3D_MT_edit_armature_nekotools(bpy.types.Menu):
+    bl_idname = "VIEW3D_MT_edit_armature_nekotools"
+    bl_label = bl_idname
+
+    def draw(self, _):
+        pass
+
+    @staticmethod
+    def draw_menu(this: bpy.types.Menu, _):
+        this.layout.operator(OP_SelectedBonesToClipboard.bl_idname)
+    
+    @staticmethod
+    def register():
+        bpy.types.VIEW3D_MT_edit_armature.append(VIEW3D_MT_edit_armature_nekotools.draw_menu)
+        bpy.types.VIEW3D_MT_armature_context_menu.append(VIEW3D_MT_edit_armature_nekotools.draw_menu)
+
+    @staticmethod
+    def unregister():
+        bpy.types.VIEW3D_MT_edit_armature.remove(VIEW3D_MT_edit_armature_nekotools.draw_menu)
+        bpy.types.VIEW3D_MT_armature_context_menu.remove(VIEW3D_MT_edit_armature_nekotools.draw_menu)
 
 
 class_list = [
     OP_MergeBones_GetThreshold,
     OP_CollapseMaterialName,
-    OP_MergeBones,
+    OP_MergeBonesByDistance,
     OP_MergeToActive,
-    PT_MainPanel,
+    VIEW_3D_PT_nekotools,
     OP_SelectBones1,
-    SelectBones1Menu,
+    OP_SelectedBonesToClipboard,
+    VIEW3D_MT_select_pose_nekotools,
+    VIEW3D_MT_pose_nekotools,
+    VIEW3D_MT_edit_armature_nekotools,
 ]
