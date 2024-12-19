@@ -7,7 +7,7 @@ from . import NekoTools
 bl_info = {
     "name": "NekoTools🐾",
     "blender": (4, 0, 0),
-    "version": (2, 1),
+    "version": (2, 2),
     'location': 'View 3D > Tool Shelf',
     'category': '3D View',
     "author": "Starfelll",
@@ -15,7 +15,7 @@ bl_info = {
 }
 
 def register():
-    for c in NekoTools.class_list:
+    for c in NekoTools.classes:
         bpy.utils.register_class(c)
 
     scene = bpy.types.Scene
@@ -38,7 +38,7 @@ def register():
     
 
 def unregister():
-    for c in reversed(NekoTools.class_list):
+    for c in reversed(NekoTools.classes):
         bpy.utils.unregister_class(c)
 
 if __name__ == "__main__":

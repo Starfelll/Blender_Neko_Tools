@@ -298,6 +298,27 @@ class OP_SelectBones1(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class OP_SetAllShapeKeyMuteState(bpy.types.Operator):
+    bl_idname = "nekotools.set_all_shape_key_mute_state"
+    bl_label = "设置所有形态键屏蔽状态"
+    bl_options = {'REGISTER', 'UNDO'}
+    options: bpy.props.StringProperty(name="options", default="INVERT")
+    protect_locked: bpy.props.BoolProperty(name="protect_locked", default=True)
+
+    def execute(self, context: bpy.types.Context):
+        if self.options == "INVERT":
+            for shape_key in context.object.data.shape_keys.key_blocks:
+                if not self.protect_locked or not shape_key.lock_shape:
+                    shape_key.mute = not shape_key.mute
+        else:
+            state = self.options == "MUTE"
+            for shape_key in context.object.data.shape_keys.key_blocks:
+                if not self.protect_locked or not shape_key.lock_shape:
+                    shape_key.mute = state
+        
+        return {'FINISHED'}
+
+
 class VIEW3D_MT_select_pose_nekotools(bpy.types.Menu):
     bl_idname = "VIEW3D_MT_select_pose_nekotools"
     bl_label = bl_idname
@@ -364,7 +385,34 @@ class VIEW3D_MT_edit_armature_nekotools(bpy.types.Menu):
         bpy.types.VIEW3D_MT_armature_context_menu.remove(VIEW3D_MT_edit_armature_nekotools.draw_menu)
 
 
-class_list = [
+class MESH_MT_shape_key_context_menu_nekotools(bpy.types.Menu):
+    bl_idname = "MESH_MT_shape_key_context_menu_nekotools"
+    bl_label = bl_idname
+
+    def draw(self, _):
+        pass
+
+    @staticmethod
+    def draw_menu(this: bpy.types.Menu, _):
+        op = this.layout.operator(OP_SetAllShapeKeyMuteState.bl_idname, text="屏蔽", icon="CHECKBOX_DEHLT")
+        op.options = "MUTE"
+        op = this.layout.operator(OP_SetAllShapeKeyMuteState.bl_idname, text="取消屏蔽", icon="CHECKBOX_HLT")
+        op.options = "UNMUTE"
+        op = this.layout.operator(OP_SetAllShapeKeyMuteState.bl_idname, text="反转屏蔽", icon="SELECT_DIFFERENCE")
+        op.options = "INVERT"
+    
+    @staticmethod
+    def register():
+        bpy.types.MESH_MT_shape_key_context_menu.append(
+            MESH_MT_shape_key_context_menu_nekotools.draw_menu)
+
+    @staticmethod
+    def unregister():
+        bpy.types.MESH_MT_shape_key_context_menu.remove(
+            MESH_MT_shape_key_context_menu_nekotools.draw_menu)
+
+
+classes = [
     OP_MergeBones_GetThreshold,
     OP_CollapseMaterialName,
     OP_MergeBonesByDistance,
@@ -372,7 +420,9 @@ class_list = [
     VIEW_3D_PT_nekotools,
     OP_SelectBones1,
     OP_SelectedBonesToClipboard,
+    OP_SetAllShapeKeyMuteState,
     VIEW3D_MT_select_pose_nekotools,
     VIEW3D_MT_pose_nekotools,
     VIEW3D_MT_edit_armature_nekotools,
+    MESH_MT_shape_key_context_menu_nekotools,
 ]
