@@ -189,7 +189,7 @@ class OP_CopyBodyGroup(bpy.types.Operator):
             if id.rna_type.name != 'Collection':
                 continue
             tmpStr += f'$BodyGroup "{id.name}" '
-            tmpStr += "{"
+            tmpStr += "{\n"
             tmpStr += f'\tstudio $custom_model$ InNode "{id.name}"\n\tblank\n'
             tmpStr += "}\n"
         
