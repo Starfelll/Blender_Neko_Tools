@@ -178,6 +178,25 @@ class OP_CollapseMaterialName(bpy.types.Operator):
 
         return {'FINISHED'}
 
+class OP_CopyBodyGroup(bpy.types.Operator):
+    bl_idname = "sourcecat.copy_bodygroup"
+    bl_label = "CopyBodyGroup"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context: bpy.types.Context):
+        tmpStr = ""
+        for id in context.selected_ids:
+            if id.rna_type.name != 'Collection':
+                continue
+            tmpStr += f'$BodyGroup "{id.name}" '
+            tmpStr += "{"
+            tmpStr += f'\tstudio $custom_model$ InNode "{id.name}"\n\tblank\n'
+            tmpStr += "}\n"
+        
+        if len(tmpStr) > 0:
+            context.window_manager.clipboard = tmpStr
+
+        return {'FINISHED'}
 
 class VIEW_3D_PT_nekotools(bpy.types.Panel):
     bl_idname = "VIEW_3D_PT_nekotools"
@@ -212,6 +231,7 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
 
         col = box.column()
         col.operator(OP_CollapseMaterialName.bl_idname, text="生成精简后的材质列表")
+        col.operator(OP_CopyBodyGroup.bl_idname, text="copy bodygroup")
 
 
 # resutn posebone or editbone
@@ -423,11 +443,34 @@ class MESH_MT_shape_key_context_menu_nekotools(bpy.types.Menu):
     def unregister():
         bpy.types.MESH_MT_shape_key_context_menu.remove(
             MESH_MT_shape_key_context_menu_nekotools.draw_menu)
+        
+
+class OUTLINER_MT_collection_nekotools(bpy.types.Menu):
+    bl_idname = "OUTLINER_MT_collection_nekotools"
+    bl_label = bl_idname
+
+    def draw(self, _):
+        pass
+
+    @staticmethod
+    def draw_menu(this: bpy.types.Menu, _):
+        op = this.layout.operator(OP_CopyBodyGroup.bl_idname)
+    
+    @staticmethod
+    def register():
+        bpy.types.OUTLINER_MT_collection.append(
+            OUTLINER_MT_collection_nekotools.draw_menu)
+
+    @staticmethod
+    def unregister():
+        bpy.types.OUTLINER_MT_collection.remove(
+            OUTLINER_MT_collection_nekotools.draw_menu)
 
 
 classes = [
     OP_MergeBones_GetThreshold,
     OP_CollapseMaterialName,
+    OP_CopyBodyGroup,
     OP_MergeBonesByDistance,
     OP_MergeToActive,
     VIEW_3D_PT_nekotools,
@@ -438,4 +481,5 @@ classes = [
     VIEW3D_MT_pose_nekotools,
     VIEW3D_MT_edit_armature_nekotools,
     MESH_MT_shape_key_context_menu_nekotools,
+    OUTLINER_MT_collection_nekotools
 ]
