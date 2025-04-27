@@ -231,7 +231,6 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
 
         col = box.column()
         col.operator(OP_CollapseMaterialName.bl_idname, text="生成精简后的材质列表")
-        col.operator(OP_CopyBodyGroup.bl_idname, text="copy bodygroup")
 
 
 # resutn posebone or editbone
