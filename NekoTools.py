@@ -1,5 +1,6 @@
 import bpy
 from decimal import Decimal
+from pathlib import Path
 
 
 def switch_mode(mode):
@@ -154,15 +155,27 @@ class OP_CollapseMaterialName(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context: bpy.types.Context):
-        for mat in bpy.data.materials:
-            node_tree = mat.node_tree
-            if not node_tree:
+        result = {}
+
+        for obj in context.selected_objects:
+            if obj.type != "MESH":
                 continue
-            for node in node_tree.nodes:
-                if node.type == "TEX_IMAGE" and node.image:
-                    suff = node.image.name.split(".")[0]
-                    if mat.name.split(".")[0] != suff:
-                        mat.name = f'{suff}.{mat.name}'
+            mesh: bpy.types.Mesh = obj.data
+            for mat in mesh.materials:
+                node_tree = mat.node_tree
+                if not node_tree:
+                    continue
+                for node in node_tree.nodes:
+                    if node.type == "TEX_IMAGE" and node.image:
+                        result[mat.name] = Path(node.image.name).stem
+                        break
+        
+        tmpStr = ""
+        for r in result:
+            tmpStr += f'$PreRenameMaterial "{r}" "{result[r]}"\n'
+        if len(tmpStr) > 0:
+            context.window_manager.clipboard = tmpStr
+
         return {'FINISHED'}
 
 
@@ -197,8 +210,8 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
         row.operator(OP_MergeBonesByDistance.bl_idname, text="合并🐾")
 
 
-        # col = box.column()
-        # col.operator(OP_CollapseMaterialName.bl_idname, text="塌陷所有材质")
+        col = box.column()
+        col.operator(OP_CollapseMaterialName.bl_idname, text="生成精简后的材质列表")
 
 
 # resutn posebone or editbone
