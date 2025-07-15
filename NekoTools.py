@@ -205,6 +205,27 @@ class OP_CopyBodyGroup(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
+class OP_SeparateByMaterial(bpy.types.Operator):
+    bl_idname = "sourcecat.separate_by_material"
+    bl_label = "根据材质拆分网格（保持法线）"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "请确保物体属性-数据-几何数据里有“清除自定义拆边法向数据”这个按钮"
+
+    def execute(self, context: bpy.types.Context):
+        init_mode = context.object.mode
+        switch_mode("EDIT")
+        meshObj = context.active_object
+        for mat_slot in meshObj.material_slots.items():
+            meshObj.active_material_index = mat_slot[1].slot_index
+            bpy.ops.mesh.select_all(action="DESELECT")
+            bpy.ops.object.material_slot_select()
+            bpy.ops.mesh.split()
+        bpy.ops.mesh.separate(type="MATERIAL")
+        switch_mode(init_mode)
+        return {'FINISHED'}
+
+
 class VIEW_3D_PT_nekotools(bpy.types.Panel):
     bl_idname = "VIEW_3D_PT_nekotools"
     bl_label = "Neko Tools 🐾"
@@ -235,9 +256,9 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
         row.scale_y = 1.6
         row.operator(OP_MergeBonesByDistance.bl_idname, text="合并🐾")
 
-
         col = box.column()
         col.operator(OP_CollapseMaterialName.bl_idname, text="生成精简后的材质列表")
+        col.operator(OP_SeparateByMaterial.bl_idname)
 
 
 # resutn posebone or editbone
@@ -480,6 +501,7 @@ classes = [
     OP_MergeBones_GetThreshold,
     OP_CollapseMaterialName,
     OP_CopyBodyGroup,
+    OP_SeparateByMaterial,
     OP_MergeBonesByDistance,
     OP_MergeToActive,
     VIEW_3D_PT_nekotools,
