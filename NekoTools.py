@@ -466,11 +466,14 @@ class OUTLINER_MT_collection_nekotools(bpy.types.Menu):
     def register():
         bpy.types.OUTLINER_MT_collection.append(
             OUTLINER_MT_collection_nekotools.draw_menu)
+        bpy.types.OUTLINER_MT_object.append(OUTLINER_MT_collection_nekotools.draw_menu)
 
     @staticmethod
     def unregister():
         bpy.types.OUTLINER_MT_collection.remove(
             OUTLINER_MT_collection_nekotools.draw_menu)
+        bpy.types.OUTLINER_MT_object.remove(OUTLINER_MT_collection_nekotools.draw_menu)
+        
 
 
 classes = [
