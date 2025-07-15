@@ -180,19 +180,26 @@ class OP_CollapseMaterialName(bpy.types.Operator):
 
 class OP_CopyBodyGroup(bpy.types.Operator):
     bl_idname = "sourcecat.copy_bodygroup"
-    bl_label = "CopyBodyGroup"
+    bl_label = "CopyBodyGroupQC"
     bl_options = {'REGISTER', 'UNDO'}
+
+    def _make_bg_qc(self, name: str) -> str:
+        tmpStr = f'$BodyGroup "{name}" '
+        tmpStr += "{\n"
+        tmpStr += f'\tstudio $custom_model$ InNode "{name}"\n\tblank\n'
+        tmpStr += "}\n"
+        return tmpStr
 
     def execute(self, context: bpy.types.Context):
         tmpStr = ""
         for id in context.selected_ids:
             if id.rna_type.name != 'Collection':
                 continue
-            tmpStr += f'$BodyGroup "{id.name}" '
-            tmpStr += "{\n"
-            tmpStr += f'\tstudio $custom_model$ InNode "{id.name}"\n\tblank\n'
-            tmpStr += "}\n"
+            tmpStr += self._make_bg_qc(id.name)
         
+        for obj in context.selected_objects:
+            tmpStr += self._make_bg_qc(obj.name)
+
         if len(tmpStr) > 0:
             context.window_manager.clipboard = tmpStr
 
