@@ -226,6 +226,82 @@ class OP_SeparateByMaterial(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class OP_MergeArmature(bpy.types.Operator):
+    bl_idname = "sourcecat.merge_armature"
+    bl_label = "合并骨架"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "自动嫁接同名骨骼"
+
+    def execute(self, context: bpy.types.Context):
+        init_mode = context.object.mode
+
+        merge_to = context.active_object
+        to_merge = None
+
+        try:
+            if merge_to.type != "ARMATURE":
+                self.report({"ERROR"}, "活动项不是骨架")
+                raise
+
+            for obj in context.selected_objects:
+                if obj.name != merge_to.name and obj.type == merge_to.type:
+                    to_merge = obj
+                    break
+            if to_merge is None or len(context.selected_objects) != 2:
+                self.report({"ERROR"}, "需要选中两个骨架")
+                raise
+
+            switch_mode("EDIT")
+
+            for bone in to_merge.data.edit_bones:
+                if merge_to.data.edit_bones.find(bone.name) != -1:
+                    bone.parent = None
+            
+            parent_backup = {}
+            for bone in to_merge.data.edit_bones:
+                if merge_to.data.edit_bones.find(bone.name) != -1:
+                    for child in bone.children:
+                        parent_backup[child.name] = bone.name
+                    to_merge.data.edit_bones.remove(bone)
+
+            switch_mode("OBJECT")
+            bpy.ops.object.select_all(action="DESELECT")
+
+            for child in to_merge.children:
+                for modifier in child.modifiers:
+                    modifier: bpy.types.ArmatureModifier = modifier
+                    if modifier.type != "ARMATURE":
+                        continue
+                    if modifier.object == to_merge:
+                        modifier.object = merge_to
+                child.select_set(True)
+
+            bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+            merge_to.select_set(True)
+            bpy.ops.object.parent_set()
+
+            bpy.ops.object.select_all(action="DESELECT")
+
+            to_merge.select_set(True)
+            merge_to.select_set(True)
+            bpy.ops.object.join()
+
+            switch_mode("EDIT")
+
+            for bone_name in parent_backup:
+                parent_bone_idx = merge_to.data.edit_bones.find(parent_backup[bone_name])
+                bone_idx = merge_to.data.edit_bones.find(bone_name)
+                merge_to.data.edit_bones[bone_idx].parent = merge_to.data.edit_bones[parent_bone_idx]
+
+        except Exception:
+            return {'CANCELLED'}
+        finally:
+            switch_mode(init_mode)
+        
+        
+        return {'FINISHED'}
+
+
 class VIEW_3D_PT_nekotools(bpy.types.Panel):
     bl_idname = "VIEW_3D_PT_nekotools"
     bl_label = "Neko Tools 🐾"
@@ -259,6 +335,7 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
         col = box.column()
         col.operator(OP_CollapseMaterialName.bl_idname, text="生成精简后的材质列表")
         col.operator(OP_SeparateByMaterial.bl_idname)
+        col.operator(OP_MergeArmature.bl_idname)
 
 
 # resutn posebone or editbone
@@ -377,6 +454,7 @@ class OP_SetAllShapeKeyMuteState(bpy.types.Operator):
                     shape_key.mute = state
         
         return {'FINISHED'}
+
 
 
 class VIEW3D_MT_select_pose_nekotools(bpy.types.Menu):
@@ -504,6 +582,7 @@ classes = [
     OP_SeparateByMaterial,
     OP_MergeBonesByDistance,
     OP_MergeToActive,
+    OP_MergeArmature,
     VIEW_3D_PT_nekotools,
     OP_SelectBones1,
     OP_SelectedBonesToClipboard,
