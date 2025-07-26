@@ -302,6 +302,190 @@ class OP_MergeArmature(bpy.types.Operator):
         return {'FINISHED'}
 
 
+# class OP_ValueBoneToBldnerFriendly:
+#     bl_idname = "sourcecat.value_bone_to_blender_friendly"
+#     bl_label = "Value骨转到V骨"
+#     bl_options = {'REGISTER', 'UNDO'}
+
+
+class OP_VToMMD(bpy.types.Operator):
+    bl_idname = "sourcecat.v_to_mmd"
+    bl_label = "V骨映射MMD骨"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "选中两个骨架，活动项为MMD骨架。两个骨架的姿态方向需要大致相同"
+
+    def execute(self, context: bpy.types.Context):
+        init_mode = context.object.mode
+        
+        mmd: bpy.types.Armature = context.active_object.data
+        v: bpy.types.Armature = None
+        for obj in context.selected_objects:
+            if mmd != obj and obj.type == "ARMATURE":
+                v = obj.data
+                break
+
+        switch_mode("POSE")
+
+        v_mappings: bpy.props.CollectionProperty = bpy.data.armatures[v.name].kumopult_bac.mappings
+        def vmap(f: str, t: str):
+            item = v_mappings.add()
+            item.has_loccopy = True
+            item.selected_owner = f
+            item.target = t
+
+        vmap("V_Neck1", "Neck")
+        vmap("V_Head1", "Head")
+            
+        vmap("V_Finger0_L", "Thumb0_L")
+        vmap("V_Finger0_R", "Thumb0_R")
+        vmap("V_Finger01_L", "Thumb1_L")
+        vmap("V_Finger01_R", "Thumb1_R")
+        vmap("V_Finger02_L", "Thumb2_L")
+        vmap("V_Finger02_R", "Thumb2_R")
+
+        vmap("V_Hand_R", "Wrist_R")
+        vmap("V_Hand_L", "Wrist_L")
+
+        vmap("V_Foot_R", "Ankle_R")
+        vmap("V_Foot_L", "Ankle_L")
+
+        vmap("V_Thigh_R", "Leg_R")
+        vmap("V_Thigh_L", "Leg_L")
+        vmap("V_Calf_R", "Knee_R")
+        vmap("V_Calf_L", "Knee_L")
+
+        vmap("V_UpperArm_R", "Arm_R")
+        vmap("V_UpperArm_L", "Arm_L")
+        vmap("V_Forearm_R", "Elbow_R")
+        vmap("V_Forearm_L", "Elbow_L")
+
+        vmap("V_Finger1_L", "IndexFinger1_L")
+        vmap("V_Finger1_R", "IndexFinger1_R")
+        vmap("V_Finger11_L", "IndexFinger2_L")
+        vmap("V_Finger11_R", "IndexFinger2_R")
+        vmap("V_Finger12_L", "IndexFinger3_L")
+        vmap("V_Finger12_R", "IndexFinger3_R")
+
+        vmap("V_Finger2_L", "MiddleFinger1_L")
+        vmap("V_Finger2_R", "MiddleFinger1_R")
+        vmap("V_Finger21_L", "MiddleFinger2_L")
+        vmap("V_Finger21_R", "MiddleFinger2_R")
+        vmap("V_Finger22_L", "MiddleFinger3_L")
+        vmap("V_Finger22_R", "MiddleFinger3_R")
+
+        vmap("V_Finger3_L", "RingFinger1_L")
+        vmap("V_Finger3_R", "RingFinger1_R")
+        vmap("V_Finger31_L", "RingFinger2_L")
+        vmap("V_Finger31_R", "RingFinger2_R")
+        vmap("V_Finger32_L", "RingFinger3_L")
+        vmap("V_Finger32_R", "RingFinger3_R")
+
+        vmap("V_Finger4_L", "LittleFinger1_L")
+        vmap("V_Finger4_R", "LittleFinger1_R")
+        vmap("V_Finger41_L", "LittleFinger2_L")
+        vmap("V_Finger41_R", "LittleFinger2_R")
+        vmap("V_Finger42_L", "LittleFinger3_L")
+        vmap("V_Finger42_R", "LittleFinger3_R")
+
+       
+        def snap(f: str, t: str):
+            bpy.ops.pose.select_all(action="DESELECT")
+            v.bones.active = v.bones[v.bones.find(f)]
+            mmd.bones.active = mmd.bones[mmd.bones.find(t)]
+            bpy.ops.view3d.snap_selected_to_active()
+        
+        snap("V_Toe0_R", "ToeTip_R")
+        snap("V_Toe0_L", "ToeTip_L")
+        snap("V_Spine", "UpperBody")
+        snap("V_Spine1", "UpperBody")
+        snap("V_Spine2", "UpperBody2")
+        snap("V_Spine4", "UpperBody2")
+        snap("V_Clavicle_R", "Shoulder_R")
+        snap("V_Clavicle_L", "Shoulder_L")
+
+        switch_mode(init_mode)
+        return {'FINISHED'}
+
+
+class OP_MMDBoneToVParent(bpy.types.Operator):
+    bl_idname = "sourcecat.mmd_bone_to_v_parent"
+    bl_label = "设置mmd骨父级到v骨"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context: bpy.types.Context):
+        if context.active_object.type != "ARMATURE":
+            self.report({'ERROR'}, 'no active armature')
+            return {'CANCELLED'}
+
+        init_mode = context.object.mode
+        armature: bpy.types.Armature = context.active_object.data
+        switch_mode("EDIT")
+
+        def rp(p: str, b: str):
+            armature.edit_bones[armature.edit_bones.find(b)].parent = armature.edit_bones[armature.edit_bones.find(p)]
+
+        rp("V_Toe0_R", "ToeTip_R")
+        rp("V_Toe0_L", "ToeTip_L")
+
+        #rp("V_Spine", "UpperBody")
+        rp("V_Spine1", "UpperBody")
+        #rp("V_Spine2", "UpperBody2")
+        rp("V_Spine4", "UpperBody2")
+        rp("V_Pelvis", "ParentNode")
+
+        rp("V_Clavicle_R", "Shoulder_R")
+        rp("V_Clavicle_L", "Shoulder_L")
+        rp("V_Neck1", "Neck")
+        rp("V_Head1", "Head")
+        rp("V_Finger0_L", "Thumb0_L")
+        rp("V_Finger0_R", "Thumb0_R")
+        rp("V_Finger01_L", "Thumb1_L")
+        rp("V_Finger01_R", "Thumb1_R")
+        rp("V_Finger02_L", "Thumb2_L")
+        rp("V_Finger02_R", "Thumb2_R")
+        rp("V_Hand_R", "Wrist_R")
+        rp("V_Hand_L", "Wrist_L")
+        rp("V_Foot_R", "Ankle_R")
+        rp("V_Foot_L", "Ankle_L")
+        rp("V_Thigh_R", "Leg_R")
+        rp("V_Thigh_L", "Leg_L")
+        rp("V_Calf_R", "Knee_R")
+        rp("V_Calf_L", "Knee_L")
+        rp("V_UpperArm_R", "Arm_R")
+        rp("V_UpperArm_L", "Arm_L")
+        rp("V_Forearm_R", "Elbow_R")
+        rp("V_Forearm_L", "Elbow_L")
+        rp("V_Finger1_L", "IndexFinger1_L")
+        rp("V_Finger1_R", "IndexFinger1_R")
+        rp("V_Finger11_L", "IndexFinger2_L")
+        rp("V_Finger11_R", "IndexFinger2_R")
+        rp("V_Finger12_L", "IndexFinger3_L")
+        rp("V_Finger12_R", "IndexFinger3_R")
+        rp("V_Finger2_L", "MiddleFinger1_L")
+        rp("V_Finger2_R", "MiddleFinger1_R")
+        rp("V_Finger21_L", "MiddleFinger2_L")
+        rp("V_Finger21_R", "MiddleFinger2_R")
+        rp("V_Finger22_L", "MiddleFinger3_L")
+        rp("V_Finger22_R", "MiddleFinger3_R")
+        rp("V_Finger3_L", "RingFinger1_L")
+        rp("V_Finger3_R", "RingFinger1_R")
+        rp("V_Finger31_L", "RingFinger2_L")
+        rp("V_Finger31_R", "RingFinger2_R")
+        rp("V_Finger32_L", "RingFinger3_L")
+        rp("V_Finger32_R", "RingFinger3_R")
+        rp("V_Finger4_L", "LittleFinger1_L")
+        rp("V_Finger4_R", "LittleFinger1_R")
+        rp("V_Finger41_L", "LittleFinger2_L")
+        rp("V_Finger41_R", "LittleFinger2_R")
+        rp("V_Finger42_L", "LittleFinger3_L")
+        rp("V_Finger42_R", "LittleFinger3_R")
+
+        switch_mode(init_mode)
+
+        self.report({'INFO'}, 'DONE')
+        return {'FINISHED'}
+
+
 class VIEW_3D_PT_nekotools(bpy.types.Panel):
     bl_idname = "VIEW_3D_PT_nekotools"
     bl_label = "Neko Tools 🐾"
@@ -336,6 +520,8 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
         col.operator(OP_CollapseMaterialName.bl_idname, text="生成精简后的材质列表")
         col.operator(OP_SeparateByMaterial.bl_idname)
         col.operator(OP_MergeArmature.bl_idname)
+        col.operator(OP_VToMMD.bl_idname)
+        col.operator(OP_MMDBoneToVParent.bl_idname)
 
 
 # resutn posebone or editbone
@@ -583,6 +769,8 @@ classes = [
     OP_MergeBonesByDistance,
     OP_MergeToActive,
     OP_MergeArmature,
+    OP_VToMMD,
+    OP_MMDBoneToVParent,
     VIEW_3D_PT_nekotools,
     OP_SelectBones1,
     OP_SelectedBonesToClipboard,
