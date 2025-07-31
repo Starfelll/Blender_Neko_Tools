@@ -662,8 +662,17 @@ class OP_DecimateBoneChain(bpy.types.Operator):
     bl_description = "精简骨骼链"
     bl_options = {'REGISTER', 'UNDO'}
 
-    iterations: bpy.props.IntProperty(name="iterations", default=1, min=1)
-    algorithm2:  bpy.props.BoolProperty(name="algorithm2", default=True)
+    algorithm:  bpy.props.EnumProperty(
+        name="Algorithm", 
+        default="2",
+        items=[
+            ("1", "曲线", ""),
+            ("2", "相隔", ""),
+            ("3", "边", ""),
+        ]
+    )
+    iterations: bpy.props.IntProperty(name="Iterations", default=1, min=0)
+    ratio: bpy.props.FloatProperty(name="曲线比率", default=0.5, min=0.0, max=1.0)
 
     def _garb_bone_chain_vertices_(self, bone: bpy.types.EditBone, bm: bmesh.types.BMesh):
         bm.verts.new(bone.head)
@@ -706,33 +715,92 @@ class OP_DecimateBoneChain(bpy.types.Operator):
 
         bone_chain_roots = self._get_bone_chain_root_list(context)
 
+        bone_chain_root_name_list = []
         for bone in bone_chain_roots:
-            print(bone.name)
+            bone_chain_root_name_list.append(bone.name)
+        
+        bone_chain_roots.clear()
+
+
+        points = []
+        def _garb_bone_chain_points(bone: bpy.types.EditBone):
+            points.append(bone.head)
+            for child in bone.children:
+                _garb_bone_chain_points(child)
+                break
+
+        armature = context.active_object
+
+
+        for bone_name in bone_chain_root_name_list:
             
-            bm: bmesh.types.BMesh = bmesh.new()
-            self._garb_bone_chain_vertices_(bone, bm)
-            bm.verts.ensure_lookup_table()
+            points = []
+            _garb_bone_chain_points(armature.data.edit_bones.get(bone_name))
 
-            num_vertices = len(bm.verts)
-            if num_vertices < 2:
-                continue
-            for i in range(num_vertices - 1):
+            curve_data = bpy.data.curves.new(f"curves_{bone_name}", type='CURVE')
+            curve_data.dimensions = '3D'
+
+            spline = curve_data.splines.new('BEZIER')
+            spline.bezier_points.add(len(points)-1)
+            
+
+            for i, coord in enumerate(points):
+                spline.bezier_points[i].co = coord
+                spline.bezier_points[i].handle_left_type = 'AUTO'
+                spline.bezier_points[i].handle_right_type = 'AUTO'
+
+
+            curve_obj = bpy.data.objects.new(curve_data.name, curve_data)
+            #curve_obj.update_from_editmode()
+            context.collection.objects.link(curve_obj)
+
+           
+            bpy.ops.object.mode_set(mode='OBJECT')
+            curve_obj.select_set(state=True)
+            context.view_layer.objects.active = curve_obj
+           
+
+            bpy.ops.object.mode_set(mode='EDIT')
+            bpy.ops.curve.select_all(action='SELECT')   
+            bpy.ops.curve.decimate(ratio=self.ratio)
+
+            bpy.ops.object.mode_set(mode='OBJECT')
+            context.view_layer.objects.active = armature
+            bpy.ops.object.mode_set(mode='EDIT')
+
+            spline = curve_obj.data.splines[0]
+            def _update_bone_chain_by_spine(bone: bpy.types.EditBone, point_index: int):
+                need_remove = False
                 
-                bm.edges.new((bm.verts[i], bm.verts[i+1]))
+                if len(spline.bezier_points) > 0:
+                   print(len(spline.bezier_points))
+                   pass
+                if point_index >= len(spline.bezier_points):
+                    need_remove = True
+                elif spline.bezier_points[point_index].co != bone.head:
+                    need_remove = True
+                else:
+                    point_index += 1
 
-            bmesh.ops.unsubdivide(bm, verts=bm.verts, iterations=self.iterations)
-            bm.verts.ensure_lookup_table()
+                for child in bone.children:
+                    if need_remove:
+                        child.parent = bone.parent
+                    _update_bone_chain_by_spine(child, point_index)
+                    break
+                if need_remove:
+                    armature.data.edit_bones.remove(bone)
+                    pass
 
-            if False: #test
-                mesh_data = bpy.data.meshes.new("test_data")
-                bm.to_mesh(mesh_data)
-                mesh_obj = bpy.data.objects.new("test", mesh_data)
-                bpy.context.collection.objects.link(mesh_obj)
-
-            self._update_bone_chain(bone, bm, context)
+            bone = armature.data.edit_bones.get(bone_name)
+            _update_bone_chain_by_spine(bone, 0)
             self._update_bone_chain_tail(bone)
 
-            bm.free()
+            context.collection.objects.unlink(curve_obj)
+            bpy.data.objects.remove(curve_obj)
+            bpy.data.curves.remove(curve_data)
+            curve_data = None
+            curve_obj = None
+
         
         return {'FINISHED'}
 
@@ -768,9 +836,48 @@ class OP_DecimateBoneChain(bpy.types.Operator):
 
         return {'FINISHED'}
 
+    def execute_3(self, context: bpy.types.Context):
+
+        bone_chain_roots = self._get_bone_chain_root_list(context)
+
+        for bone in bone_chain_roots:
+            print(bone.name)
+            
+            bm: bmesh.types.BMesh = bmesh.new()
+            self._garb_bone_chain_vertices_(bone, bm)
+            bm.verts.ensure_lookup_table()
+
+            num_vertices = len(bm.verts)
+            if num_vertices < 2:
+                continue
+            for i in range(num_vertices - 1):
+                
+                bm.edges.new((bm.verts[i], bm.verts[i+1]))
+
+            if self.iterations > 0:
+                bmesh.ops.unsubdivide(bm, verts=bm.verts, iterations=self.iterations)
+                bm.verts.ensure_lookup_table()
+
+            if False: #test
+                mesh_data = bpy.data.meshes.new("test_data")
+                bm.to_mesh(mesh_data)
+                mesh_obj = bpy.data.objects.new("test", mesh_data)
+                bpy.context.collection.objects.link(mesh_obj)
+                    
+
+            self._update_bone_chain(bone, bm, context)
+            self._update_bone_chain_tail(bone)
+
+            bm.free()
+        
+        return {'FINISHED'}
+
+
     def execute(self, context: bpy.types.Context):
-        if self.algorithm2:
+        if self.algorithm == "2":
             return self.execute_2(context)
+        elif self.algorithm == "3":
+            return self.execute_3(context)
         return self.execute_1(context)
 
 class VIEW3D_MT_select_pose_nekotools(bpy.types.Menu):
