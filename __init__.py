@@ -163,7 +163,7 @@ class OP_MergeBones_GetThreshold(bpy.types.Operator):
 
 class OP_CollapseMaterialName(bpy.types.Operator):
     bl_idname = "sourcecat.collapse_material_name"
-    bl_label = "Collapse material"
+    bl_label = "生成精简后的材质列表QC"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context: bpy.types.Context):
@@ -555,11 +555,16 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
         row.operator(OP_MergeBonesByDistance.bl_idname, text="合并🐾")
 
         col = box.column()
-        col.operator(OP_CollapseMaterialName.bl_idname, text="生成精简后的材质列表")
+        col.scale_y = 1.2
+        col.operator(OP_CollapseMaterialName.bl_idname)
         col.operator(OP_SeparateByMaterial.bl_idname)
         col.operator(OP_MergeArmature.bl_idname)
-        col.operator(OP_VToMMD.bl_idname)
-        col.operator(OP_MMDBoneToVParent.bl_idname)
+
+        row = col.row()
+        row.operator(OP_VToMMD.bl_idname)
+        row.operator(OP_MMDBoneToVParent.bl_idname)
+
+        col.operator(OP_RemoveUnweightedBones.bl_idname)
 
 
 # resutn posebone or editbone
@@ -629,7 +634,7 @@ class OP_SelectBones1(bpy.types.Operator):
         if self.same_prefix:
             context_override = {}
             if (context.object.type != "ARMATURE"):
-                return {"nonono"}
+                return {'CANCELLED'}
             context_override["active_bone"] = context.object.data.edit_bones[ref_chain_root]
             with context.temp_override(**context_override):
                 bpy.ops.armature.select_similar(type="PREFIX")
@@ -908,6 +913,52 @@ class OP_DecimateBoneChain(bpy.types.Operator):
             return self.execute_3(context)
         return self.execute_1(context)
 
+# def _util_collapse_bone(bone: bpy.types.EditBone, armature: bpy.types.Armature):
+#     if bone.parent  None:
+
+
+class OP_RemoveUnweightedBones(bpy.types.Operator):
+    bl_idname = "nekotools.remove_unweighted_bones"
+    bl_label = "清除无权重骨骼"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context: bpy.types.Context):
+        if context.mode != "OBJECT":
+            self.report({"WARNING"}, "请启用对象模式")
+            return {'CANCELLED'}
+        for armature in context.selected_objects:
+            if armature.type != "ARMATURE":
+                continue
+            vertex_group_names = {}
+
+            for mesh in armature.children:
+                if mesh.type != "MESH":
+                    continue
+                # 检查骨架修改器
+                armature_modifier: bpy.types.ArmatureModifier = None
+                for modifier in mesh.modifiers:
+                    if modifier.type != "ARMATURE":
+                        continue
+                    if modifier.object == armature:
+                        armature_modifier = modifier
+                if armature_modifier is None:
+                    continue
+
+                with context.temp_override(selected_objects={mesh}, active_object=mesh, object=mesh):
+                    bpy.ops.lazyweight.vgroup_remove_empty()
+                    # https://extensions.blender.org/add-ons/easyweight/
+                    # bpy.ops.object.delete_empty_deform_vgroups()
+                for vg in mesh.vertex_groups:
+                    vertex_group_names[vg.name] = None
+            
+            switch_mode("EDIT")
+            for bone in armature.data.edit_bones:
+                if bone.name not in vertex_group_names:
+                    armature.data.edit_bones.remove(bone)
+            switch_mode("OBJECT")
+        
+        return {'FINISHED'}
+
 
 class VIEW3D_MT_select_pose_nekotools(bpy.types.Menu):
     bl_idname = "VIEW3D_MT_select_pose_nekotools"
@@ -1012,6 +1063,7 @@ classes = [
     OP_VToMMD,
     OP_MMDBoneToVParent,
     OP_DecimateBoneChain,
+    OP_RemoveUnweightedBones,
     VIEW_3D_PT_nekotools,
     OP_SelectBones1,
     OP_SelectedBonesToClipboard,
