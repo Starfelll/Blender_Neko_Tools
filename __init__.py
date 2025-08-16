@@ -583,7 +583,10 @@ class OP_SelectedBonesToClipboard(bpy.types.Operator):
         for bone in selected_bones:
             if len(result) > 0:
                 result += "\n"
-            result += self.pattern.replace("$$", bone.name)
+            if len(self.pattern) == 0:
+                result += bone.name
+            else:
+                result += self.pattern.replace("$$", bone.name)
             copied_num += 1
 
         if len(result) > 0:
