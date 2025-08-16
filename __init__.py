@@ -7,7 +7,7 @@ import bmesh
 bl_info = {
     "name": "NekoTools🐾",
     "blender": (4, 0, 0),
-    "version": (2, 2),
+    "version": (3, 0),
     'location': 'View 3D > Tool Shelf',
     'category': '3D View',
     "author": "Starfelll",
