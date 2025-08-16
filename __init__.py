@@ -167,7 +167,7 @@ class OP_CollapseMaterialName(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context: bpy.types.Context):
-        result = {}
+        mat_tex_map = {}
 
         for obj in context.selected_objects:
             if obj.type != "MESH":
@@ -179,12 +179,21 @@ class OP_CollapseMaterialName(bpy.types.Operator):
                     continue
                 for node in node_tree.nodes:
                     if node.type == "TEX_IMAGE" and node.image:
-                        result[mat.name] = Path(node.image.name).stem
+                        mat_tex_map[mat.name] = Path(node.image.name).stem
                         break
         
+        result = {}
+        for mat in mat_tex_map:
+            tex = mat_tex_map[mat]
+            if tex not in result:
+                result[tex] = []
+            result[tex].append(mat)
+
         tmpStr = ""
-        for r in result:
-            tmpStr += f'$PreRenameMaterial "{r}" "{result[r]}"\n'
+        for tex in result:
+            for mat in result[tex]:
+                tmpStr += f'$PreRenameMaterial "{mat}" "{tex}"\n'
+            tmpStr += "\n"
         if len(tmpStr) > 0:
             context.window_manager.clipboard = tmpStr
 
@@ -437,8 +446,7 @@ class OP_MMDBoneToVParent(bpy.types.Operator):
         def rp(p: str, b: str):
             armature.edit_bones[armature.edit_bones.find(b)].parent = armature.edit_bones[armature.edit_bones.find(p)]
 
-        rp("V_Toe0_R", "ToeTip_R")
-        rp("V_Toe0_L", "ToeTip_L")
+
 
         #rp("V_Spine", "UpperBody")
         rp("V_Spine1", "UpperBody")
