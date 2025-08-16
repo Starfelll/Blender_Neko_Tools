@@ -574,20 +574,21 @@ class OP_SelectedBonesToClipboard(bpy.types.Operator):
     bl_idname = "nekotools.selected_bones_to_clipboard"
     bl_label = "复制选中骨骼名字"
     bl_options = {'REGISTER', 'UNDO'}
-    prefix: bpy.props.StringProperty(name="前缀", default="$BoneMerge ") # type: ignore
+    pattern: bpy.props.StringProperty(name="模版", default="$BoneMerge \"$$\"") # type: ignore
     
     def execute(self, context: bpy.types.Context):
-        is_first = True
+        copied_num = 0
         result = ''
         selected_bones = get_selected_bones(context)
         for bone in selected_bones:
-            if is_first:
-                is_first = False
-            else:
+            if len(result) > 0:
                 result += "\n"
-            result += f'{self.prefix}"{bone.name}"'
+            result += self.pattern.replace("$$", bone.name)
+            copied_num += 1
+
         if len(result) > 0:
             context.window_manager.clipboard = result
+            self.report({"INFO"}, f"已复制{copied_num}个骨骼的名字")
         return {"FINISHED"}
 
 
@@ -952,7 +953,7 @@ class MESH_MT_shape_key_context_menu_nekotools(bpy.types.Menu):
     def unregister():
         bpy.types.MESH_MT_shape_key_context_menu.remove(
             MESH_MT_shape_key_context_menu_nekotools.draw_menu)
-        
+
 
 class OUTLINER_MT_collection_nekotools(bpy.types.Menu):
     bl_idname = "OUTLINER_MT_collection_nekotools"
@@ -997,7 +998,6 @@ def draw_VIEW3D_MT_pose_context_menu(this: bpy.types.Menu, _):
     this.layout.operator(OP_SelectedBonesToClipboard.bl_idname)
     pass
 
-
 classes = [
     OP_MergeBones_GetThreshold,
     OP_CollapseMaterialName,
@@ -1017,8 +1017,6 @@ classes = [
     MESH_MT_shape_key_context_menu_nekotools,
     OUTLINER_MT_collection_nekotools
 ]
-
-
 
 def register():
     for c in classes:
@@ -1046,7 +1044,6 @@ def register():
     bpy.types.VIEW3D_MT_pose.append(draw_VIEW3D_MT_pose)
     bpy.types.VIEW3D_MT_pose_context_menu.append(draw_VIEW3D_MT_pose_context_menu)
 
-    
 
 def unregister():
     bpy.types.VIEW3D_MT_armature_context_menu.remove(draw_VIEW3D_MT_armature_context_menu)
