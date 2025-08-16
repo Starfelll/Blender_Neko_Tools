@@ -467,12 +467,28 @@ class OP_MMDBoneToVParent(bpy.types.Operator):
         rp("V_Finger02_R", "Thumb2_R")
         rp("V_Hand_R", "Wrist_R")
         rp("V_Hand_L", "Wrist_L")
+
+        rp("V_Toe0_R", "ToeTip_R")
+        rp("V_Toe0_L", "ToeTip_L")
+        rp("V_Toe0_R", "LegTipEX_R")
+        rp("V_Toe0_L", "LegTipEX_L")
+
         rp("V_Foot_R", "Ankle_R")
         rp("V_Foot_L", "Ankle_L")
-        rp("V_Thigh_R", "Leg_R")
-        rp("V_Thigh_L", "Leg_L")
+        rp("V_Foot_R", "AnkleD_R")
+        rp("V_Foot_L", "AnkleD_L")
+
         rp("V_Calf_R", "Knee_R")
         rp("V_Calf_L", "Knee_L")
+        rp("V_Calf_R", "KneeD_R")
+        rp("V_Calf_L", "KneeD_L")
+
+        rp("V_Thigh_R", "Leg_R")
+        rp("V_Thigh_L", "Leg_L")
+        rp("V_Thigh_R", "LegD_R")
+        rp("V_Thigh_L", "LegD_L")
+
+
         rp("V_UpperArm_R", "Arm_R")
         rp("V_UpperArm_L", "Arm_L")
         rp("V_Forearm_R", "Elbow_R")
@@ -887,6 +903,7 @@ class OP_DecimateBoneChain(bpy.types.Operator):
         elif self.algorithm == "3":
             return self.execute_3(context)
         return self.execute_1(context)
+
 
 class VIEW3D_MT_select_pose_nekotools(bpy.types.Menu):
     bl_idname = "VIEW3D_MT_select_pose_nekotools"
