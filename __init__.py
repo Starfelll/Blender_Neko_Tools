@@ -324,10 +324,106 @@ class OP_MergeArmature(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# class OP_ValueBoneToBldnerFriendly:
-#     bl_idname = "sourcecat.value_bone_to_blender_friendly"
-#     bl_label = "Value骨转到V骨"
-#     bl_options = {'REGISTER', 'UNDO'}
+class OP_ValveBoneRename(bpy.types.Operator):
+    bl_idname = "sourcecat.valve_bone_rename"
+    bl_label = "Valve骨名转换"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "在ValveBiped和适合blender的V骨名之间转换"
+
+    reverse: bpy.props.BoolProperty(name="reverse", default=False)
+
+    def execute(self, context: bpy.types.Context):
+        if context.active_object.type != "ARMATURE":
+            self.report({'ERROR'}, 'no active armature')
+            return {'CANCELLED'}
+
+        init_mode = context.object.mode
+        armature: bpy.types.Armature = context.active_object.data
+        switch_mode("EDIT")
+
+        renamed_count = 0
+        def rn(name: str, new_name: str):
+            nonlocal renamed_count
+            if self.reverse:
+                tmp = new_name
+                new_name = name
+                name = tmp
+            bone_index = armature.bones.find(name)
+            if bone_index != -1:
+                armature.bones[bone_index].name = new_name
+                renamed_count += 1
+
+        rn("ValveBiped.Bip01_Head1", "V_Head1")
+        rn("ValveBiped.Bip01_Neck1", "V_Neck1")
+        rn("ValveBiped.Bip01_Spine4", "V_Spine4")
+        rn("ValveBiped.Bip01_Spine2", "V_Spine2")
+        rn("ValveBiped.Bip01_Spine1", "V_Spine1")
+        rn("ValveBiped.Bip01_Spine", "V_Spine")
+        rn("ValveBiped.Bip01_Pelvis", "V_Pelvis")
+        rn("ValveBiped.Bip01_L_Toe0", "V_Toe0_L")
+        rn("ValveBiped.Bip01_L_Foot", "V_Foot_L")
+        rn("ValveBiped.Bip01_L_Calf", "V_Calf_L")
+        rn("ValveBiped.Bip01_L_Thigh", "V_Thigh_L")
+        rn("ValveBiped.Bip01_R_Toe0", "V_Toe0_R")
+        rn("ValveBiped.Bip01_R_Foot", "V_Foot_R")
+        rn("ValveBiped.Bip01_R_Calf", "V_Calf_R")
+        rn("ValveBiped.Bip01_R_Thigh", "V_Thigh_R")
+        rn("ValveBiped.Bip01_L_Finger02", "V_Finger02_L")
+        rn("ValveBiped.Bip01_L_Finger01", "V_Finger01_L")
+        rn("ValveBiped.Bip01_L_Finger0", "V_Finger0_L")
+        rn("ValveBiped.Bip01_L_Finger12", "V_Finger12_L")
+        rn("ValveBiped.Bip01_L_Finger11", "V_Finger11_L")
+        rn("ValveBiped.Bip01_L_Finger1", "V_Finger1_L")
+        rn("ValveBiped.Bip01_L_Finger22", "V_Finger22_L")
+        rn("ValveBiped.Bip01_L_Finger21", "V_Finger21_L")
+        rn("ValveBiped.Bip01_L_Finger2", "V_Finger2_L")
+        rn("ValveBiped.Bip01_L_Finger32", "V_Finger32_L")
+        rn("ValveBiped.Bip01_L_Finger31", "V_Finger31_L")
+        rn("ValveBiped.Bip01_L_Finger3", "V_Finger3_L")
+        rn("ValveBiped.Bip01_L_Finger42", "V_Finger42_L")
+        rn("ValveBiped.Bip01_L_Finger41", "V_Finger41_L")
+        rn("ValveBiped.Bip01_L_Finger4", "V_Finger4_L")
+        rn("ValveBiped.Bip01_L_Hand", "V_Hand_L")
+        rn("ValveBiped.Bip01_L_Forearm", "V_Forearm_L")
+        rn("ValveBiped.Bip01_L_UpperArm", "V_UpperArm_L")
+        rn("ValveBiped.Bip01_L_Clavicle", "V_Clavicle_L")
+        rn("ValveBiped.Bip01_R_Finger02", "V_Finger02_R")
+        rn("ValveBiped.Bip01_R_Finger01", "V_Finger01_R")
+        rn("ValveBiped.Bip01_R_Finger0", "V_Finger0_R")
+        rn("ValveBiped.Bip01_R_Finger12", "V_Finger12_R")
+        rn("ValveBiped.Bip01_R_Finger11", "V_Finger11_R")
+        rn("ValveBiped.Bip01_R_Finger1", "V_Finger1_R")
+        rn("ValveBiped.Bip01_R_Finger22", "V_Finger22_R")
+        rn("ValveBiped.Bip01_R_Finger21", "V_Finger21_R")
+        rn("ValveBiped.Bip01_R_Finger2", "V_Finger2_R")
+        rn("ValveBiped.Bip01_R_Finger32", "V_Finger32_R")
+        rn("ValveBiped.Bip01_R_Finger31", "V_Finger31_R")
+        rn("ValveBiped.Bip01_R_Finger3", "V_Finger3_R")
+        rn("ValveBiped.Bip01_R_Finger42", "V_Finger42_R")
+        rn("ValveBiped.Bip01_R_Finger41", "V_Finger41_R")
+        rn("ValveBiped.Bip01_R_Finger4", "V_Finger4_R")
+        rn("ValveBiped.Bip01_R_Hand", "V_Hand_R")
+        rn("ValveBiped.Bip01_R_Forearm", "V_Forearm_R")
+        rn("ValveBiped.Bip01_R_UpperArm", "V_UpperArm_R")
+        rn("ValveBiped.Bip01_R_Clavicle", "V_Clavicle_R")
+
+        rn("ValveBiped.Bip01_R_Forearm_driven", "V_Forearm_driven_R")
+        rn("ValveBiped.Bip01_R_Driven_ulna", "V_Driven_ulna_R")
+        rn("ValveBiped.Bip01_R_wrist_helper2", "V_wrist_helper2_R")
+        rn("ValveBiped.Bip01_R_wrist_helper1", "V_wrist_helper1_R")
+        rn("ValveBiped.Bip01_R_thumbroot", "V_thumbroot_R")
+
+        rn("ValveBiped.Bip01_L_Forearm_driven", "V_Forearm_driven_L")
+        rn("ValveBiped.Bip01_L_Driven_ulna", "V_Driven_ulna_L")
+        rn("ValveBiped.Bip01_L_wrist_helper2", "V_wrist_helper2_L")
+        rn("ValveBiped.Bip01_L_wrist_helper1", "V_wrist_helper1_L")
+        rn("ValveBiped.Bip01_L_thumbroot", "V_thumbroot_L")
+
+
+        switch_mode(init_mode)
+
+        self.report({'INFO'}, f"{renamed_count} bones renamed.")
+        return {'FINISHED'}  
 
 
 class OP_VToMMD(bpy.types.Operator):
@@ -565,6 +661,7 @@ class VIEW_3D_PT_nekotools(bpy.types.Panel):
         row.operator(OP_MMDBoneToVParent.bl_idname)
 
         col.operator(OP_RemoveUnweightedBones.bl_idname)
+        col.operator(OP_ValveBoneRename.bl_idname)
 
 
 # resutn posebone or editbone
@@ -1064,6 +1161,7 @@ classes = [
     OP_MMDBoneToVParent,
     OP_DecimateBoneChain,
     OP_RemoveUnweightedBones,
+    OP_ValveBoneRename,
     VIEW_3D_PT_nekotools,
     OP_SelectBones1,
     OP_SelectedBonesToClipboard,
