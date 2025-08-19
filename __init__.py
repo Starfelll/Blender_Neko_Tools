@@ -3,6 +3,7 @@ from bpy.props import BoolProperty, FloatProperty
 from decimal import Decimal
 from pathlib import Path
 import bmesh
+import numpy as np
 
 bl_info = {
     "name": "NekoTools🐾",
@@ -235,15 +236,43 @@ class OP_SeparateByMaterial(bpy.types.Operator):
     bl_description = "请确保物体属性-数据-几何数据里有“清除自定义拆边法向数据”这个按钮"
 
     def execute(self, context: bpy.types.Context):
-        init_mode = context.object.mode
-        switch_mode("EDIT")
+        if len(context.selected_objects) > 1:
+            self.report({"ERROR"}, "multi object selected")
+            return {"CANCELLED"}
+        
         meshObj = context.active_object
-        for mat_slot in meshObj.material_slots.items():
-            meshObj.active_material_index = mat_slot[1].slot_index
-            bpy.ops.mesh.select_all(action="DESELECT")
-            bpy.ops.object.material_slot_select()
-            bpy.ops.mesh.split()
+        if meshObj.type != "MESH":
+            self.report({"ERROR"}, "actived object is not mesh")
+            return {"CANCELLED"}
+        
+        init_mode = context.object.mode
+        
+
+        switch_mode("OBJECT")
+        normal_bak = meshObj.data.attributes.new("neko_normal_bak", "FLOAT_VECTOR", "CORNER")
+        normals_data = np.empty(meshObj.data.attributes.domain_size("CORNER") * 3, dtype=np.float32)
+        meshObj.data.loops.foreach_get("normal", normals_data)
+        normal_bak.data.foreach_set("vector", normals_data)
+
+        switch_mode("EDIT")
+        # 此方法会导致与单纯ctrl+p分离的网格顶点排序不一致，弃用
+        # for mat_slot in meshObj.material_slots.items():
+        #     meshObj.active_material_index = mat_slot[1].slot_index
+        #     bpy.ops.mesh.select_all(action="DESELECT")
+        #     bpy.ops.object.material_slot_select()
+        #     bpy.ops.mesh.split() 
         bpy.ops.mesh.separate(type="MATERIAL")
+
+        switch_mode("OBJECT")
+        for obj in context.selected_objects:
+            normal_bak = obj.data.attributes.get("neko_normal_bak")
+            if normal_bak:
+                normals_data = np.empty(obj.data.attributes.domain_size("CORNER") * 3, dtype=np.float32)
+                normal_bak.data.foreach_get("vector", normals_data)
+                obj.data.normals_split_custom_set(normals_data.reshape(-1,3))
+                obj.data.attributes.remove(normal_bak)
+
+
         switch_mode(init_mode)
         return {'FINISHED'}
 
@@ -1019,14 +1048,22 @@ class OP_RemoveUnweightedBones(bpy.types.Operator):
     bl_label = "清除无权重骨骼"
     bl_options = {'REGISTER', 'UNDO'}
 
+    only_selected: bpy.props.BoolProperty(name="Only Selected", default=True)
+
     def execute(self, context: bpy.types.Context):
-        if context.mode != "OBJECT":
-            self.report({"WARNING"}, "请启用对象模式")
-            return {'CANCELLED'}
+        num_deleted = 0
+        
         for armature in context.selected_objects:
+            switch_mode("OBJECT")
             if armature.type != "ARMATURE":
                 continue
             vertex_group_names = {}
+
+            whitlist = {}
+            if self.only_selected:
+                for bone in armature.data.bones:
+                    if bone.select:
+                        whitlist[bone.name] = None
 
             for mesh in armature.children:
                 if mesh.type != "MESH":
@@ -1050,10 +1087,14 @@ class OP_RemoveUnweightedBones(bpy.types.Operator):
             
             switch_mode("EDIT")
             for bone in armature.data.edit_bones:
+                if self.only_selected and (bone.name not in whitlist):
+                    continue
                 if bone.name not in vertex_group_names:
                     armature.data.edit_bones.remove(bone)
-            switch_mode("OBJECT")
+                    num_deleted += 1
+            
         
+        self.report({"INFO"}, f"{num_deleted} bones deleted.")
         return {'FINISHED'}
 
 
