@@ -8,7 +8,7 @@ import numpy as np
 bl_info = {
     "name": "NekoTools🐾",
     "blender": (4, 0, 0),
-    "version": (3, 0),
+    "version": (3, 1),
     'location': 'View 3D > Tool Shelf',
     'category': '3D View',
     "author": "Starfelll",
@@ -52,19 +52,25 @@ class OP_MergeBonesByDistance(bpy.types.Operator):
     bl_description = "在选中的骨骼里，将不属于任何骨骼集合的骨骼，按照距离合并权重到存在于骨骼集合中的骨骼"
     bl_options = {'REGISTER', 'UNDO'}
 
+    merge_weight: bpy.props.BoolProperty(name="Merge Weights", default=False)
+    ##keep_merged_bones: bpy.props.BoolProperty(name="Keep Merged Bones", default=False)
+    by_bone_color: bpy.props.BoolProperty(name="By Bone Color", default=False)
+
     def execute(self, context):
         init_mode = context.object.mode
         switch_mode('EDIT')
 
         selected_bones = context.selected_bones
         if selected_bones is None:
-            self.report({'INFO'}, 'No selected bone')
+            self.report({'ERROR'}, 'No selected bone')
             return {'CANCELLED'}
 
         armature = context.object
         scene = context.scene
         merging_list = []
         print(len(selected_bones))
+
+        result = 0
         for i in range(len(selected_bones)):
             boneA = selected_bones[i]
             for i2 in range(i+1, len(selected_bones)):
@@ -74,34 +80,46 @@ class OP_MergeBonesByDistance(bpy.types.Operator):
                 if Decimal(d.length) <= Decimal(scene.merge_bones_threshold):
                     aInGroup = False
                     bInGroup = False
-                    print(boneB.collections)
-                    print(boneA.collections)
-                    if len(boneA.collections.keys()):
-                        aInGroup = True
-                    if len(boneB.collections.keys()):
-                        bInGroup = True
+
+                    if self.by_bone_color is False:
+                        if len(boneA.collections.keys()):
+                            aInGroup = True
+                        if len(boneB.collections.keys()):
+                            bInGroup = True
+                    else:
+                        if boneA.color.palette != "DEFAULT":
+                            aInGroup = True
+                        if boneB.color.palette != "DEFAULT":
+                            bInGroup = True
+
                     
-                    if aInGroup and bInGroup:
-                        print(boneA.collections, boneB.collections)
-                        continue
-                    elif aInGroup:
-                        merging_list.append([boneB.name, boneA.name])
-                    elif bInGroup:
-                        merging_list.append([boneA.name, boneB.name])
-                    merge_bone(armature, merging_list[-1][0], merging_list[-1][1], scene.keep_merged_bones)
-        for obj in bpy.context.scene.objects.get(armature.name).children:
-            if obj.type != 'MESH':
-                continue
-            for tomerge, bone in merging_list:
-                vg_tomerge = obj.vertex_groups.get(tomerge)
-                vg_bone = obj.vertex_groups.get(bone)
-                if vg_tomerge:
-                    if vg_bone is None:
-                        obj.vertex_groups.new(name=bone)
-                    set_active_obj(obj)
-                    merge_weights(mesh=obj, vg_from=tomerge, vg_to=bone)
+                    if aInGroup != bInGroup:
+                        #print(boneA.collections, boneB.collections)
+                        if aInGroup:
+                            merging_list.append([boneB.name, boneA.name])
+                            boneB.use_connect = False
+                        elif bInGroup:
+                            merging_list.append([boneA.name, boneB.name])
+                            boneA.use_connect = False
+                        merge_bone(armature, merging_list[-1][0], merging_list[-1][1], scene.keep_merged_bones)
+                        result += 1
+        if self.merge_weight:
+            for obj in armature.children:
+                if obj.type != 'MESH':
+                    continue
+                for tomerge, bone in merging_list:
+                    vg_tomerge = obj.vertex_groups.get(tomerge)
+                    vg_bone = obj.vertex_groups.get(bone)
+                    if vg_tomerge:
+                        if vg_bone is None:
+                            obj.vertex_groups.new(name=bone)
+                        set_active_obj(obj)
+                        merge_weights(mesh=obj, vg_from=tomerge, vg_to=bone)
         set_active_obj(armature)
         switch_mode(init_mode)
+
+
+        self.report({"INFO"}, f"{result} bones edited.")
         return {'FINISHED'}
 
 
@@ -467,7 +485,7 @@ class OP_VToMMD(bpy.types.Operator):
         mmd: bpy.types.Armature = context.active_object.data
         v: bpy.types.Armature = None
         for obj in context.selected_objects:
-            if mmd != obj and obj.type == "ARMATURE":
+            if mmd != obj.data and obj.type == "ARMATURE":
                 v = obj.data
                 break
 
@@ -534,7 +552,7 @@ class OP_VToMMD(bpy.types.Operator):
         vmap("V_Finger42_L", "LittleFinger3_L")
         vmap("V_Finger42_R", "LittleFinger3_R")
 
-       
+        
         def snap(f: str, t: str):
             bpy.ops.pose.select_all(action="DESELECT")
             v.bones.active = v.bones[v.bones.find(f)]
@@ -1220,7 +1238,7 @@ def register():
     scene.keep_merged_bones = BoolProperty(
         name='Keep Merged Bones',
         description='',
-        default=False
+        default=True
     )
     scene.merge_bones_threshold = FloatProperty(
         name='Threshold',
